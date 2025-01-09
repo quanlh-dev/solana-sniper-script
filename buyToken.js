@@ -1,8 +1,7 @@
 const { Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl } = require('@solana/web3.js');
 const { Market, OpenOrders } = require('@project-serum/serum');
 const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
-
-const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
+const { JitoBundler } = require('jito-solana');
 
 async function buyToken(connection, payer, marketAddress, amount, price) {
     const market = await Market.load(connection, marketAddress, {}, TOKEN_PROGRAM_ID);
@@ -26,11 +25,13 @@ async function buyToken(connection, payer, marketAddress, amount, price) {
         })
     );
     try {
-        console.log('Placing order...', transaction);
-        await connection.sendTransaction(transaction, [payer]);
+        const bundler = new JitoBundler(connection);
+        const bundledTransaction = await bundler.bundleTransaction(transaction, [payer]);
+
+        await connection.sendRawTransaction(bundledTransaction.serialize());
         console.log('Order placed successfully!');
 
-        await connection.confirmTransaction(transaction);
+        await connection.confirmTransaction(bundledTransaction);
         return true;
     } catch (err) {
         console.error('Failed to buy tokens:', err);

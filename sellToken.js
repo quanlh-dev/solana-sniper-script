@@ -27,10 +27,14 @@ async function sellToken(connection, wallet, tokenMintAddress, amount, marketAdd
 
     try {
         console.log('Placing sell order...');
-        await connection.sendTransaction(transaction, [wallet]);
+
+        const bundler = new JitoBundler(connection);
+        const bundledTransaction = await bundler.bundleTransaction(transaction, [wallet]);
+
+        await connection.sendRawTransaction(bundledTransaction.serialize());
         console.log('Order placed successfully!');
 
-        await connection.confirmTransaction(transaction);
+        await connection.confirmTransaction(bundledTransaction);
         return true;
     } catch (err) {
         console.error('Error during token sale:', err);

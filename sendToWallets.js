@@ -1,5 +1,6 @@
 const { Transaction, SystemProgram, sendAndConfirmTransaction } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, Token, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
+const { JitoBundler } = require('jito-solana');
 
 async function sendToWallets(connection, parentWallet, tokenAmount, wallets, tokenMintAddress = undefined) {
     const transaction = new Transaction();
@@ -36,7 +37,10 @@ async function sendToWallets(connection, parentWallet, tokenAmount, wallets, tok
 
     try {
         console.log('Sending transaction...');
-        await sendAndConfirmTransaction(connection, transaction, [parentWallet]);
+        const bundler = new JitoBundler(connection);
+        const bundledTransaction = await bundler.bundleTransaction(transaction, [parentWallet]);
+
+        await sendAndConfirmTransaction(connection, bundledTransaction, [parentWallet]);
         console.log('Transaction successful!');
     } catch (err) {
         console.error('Transaction failed', err);
