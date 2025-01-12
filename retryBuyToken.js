@@ -1,9 +1,10 @@
 const buyToken = require('./buyToken');
-async function retryBuyToken(connection, payer, marketAddress, amount, price, retries = 3) {
+async function retryBuyToken(connection, parentWallet, marketAddress, amount, jitoApiUrlBundles) {
+    retries = 3
     let attempt = 0;
     while (attempt < retries) {
         try {
-            const success = await buyToken(connection, payer, marketAddress, amount, price);
+            const success = await buyToken(connection, parentWallet, marketAddress, amount, jitoApiUrlBundles);
             if (success) {
                 console.log('Token bought successfully!');
                 return true;

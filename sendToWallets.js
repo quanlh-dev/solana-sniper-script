@@ -1,8 +1,7 @@
 const { Transaction, SystemProgram, sendAndConfirmTransaction } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, Token, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
-const { JitoBundler } = require('jito-solana');
 
-async function sendToWallets(connection, parentWallet, tokenAmount, wallets, tokenMintAddress = undefined) {
+async function sendToWallets(connection, parentWallet, tokenAmount, wallets, tokenMintAddress = undefined, jitoApiUrlBundles) {
     const transaction = new Transaction();
     if (tokenMintAddress) {
         for (let wallet of wallets) {
@@ -15,7 +14,6 @@ async function sendToWallets(connection, parentWallet, tokenAmount, wallets, tok
             const transferInstruction = token.createTransferInstruction(
                 parentWallet.publicKey,
                 recipientTokenAccount,
-                parentWallet.publicKey,
                 tokenAmount,
                 [],
                 SystemProgram.programId
@@ -37,10 +35,29 @@ async function sendToWallets(connection, parentWallet, tokenAmount, wallets, tok
 
     try {
         console.log('Sending transaction...');
-        const bundler = new JitoBundler(connection);
-        const bundledTransaction = await bundler.bundleTransaction(transaction, [parentWallet]);
+        const serializedTransaction = transaction.serializeMessage();
+        const bundlePayload = {
+            transactions: [
+                {
+                    transaction: Buffer.from(serializedTransaction).toString('base64'),
+                    signature: parentWallet.signTransaction(transaction),
+                },
+            ],
+        };
+        const response = await axios.post(jitoApiUrlBundles, bundlePayload, {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
-        await sendAndConfirmTransaction(connection, bundledTransaction, [parentWallet]);
+        if (response.status === 200) {
+            console.log('Transaction successfully bundled:', response.data);
+            const bundleId = response.data.bundleId;
+            const sendResponse = await axios.post(`jitoApiUrlBundles${bundleId}/send`);
+            console.log('Transaction sent successfully:', sendResponse.data);
+        } else {
+            console.error('Error bundling transaction:', response.data);
+        }
         console.log('Transaction successful!');
     } catch (err) {
         console.error('Transaction failed', err);
